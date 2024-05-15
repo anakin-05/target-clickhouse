@@ -87,6 +87,8 @@ class ClickhouseSink(SQLSink):
         Returns:
             True if table exists, False if not, None if unsure or undetectable.
         """
+        schema["properties"]["is_deleted"] = {"type": "integer"}
+
         # Need to convert any records with a dict type to a JSON string.
         for record in records:
             for key, value in record.items():
