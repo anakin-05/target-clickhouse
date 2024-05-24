@@ -39,6 +39,7 @@ class ClickhouseSink(SQLSink):
 
         Returns
             Max number of records to batch before `is_full=True`
+
         """
         return self.MAX_SIZE_DEFAULT
 
@@ -48,6 +49,7 @@ class ClickhouseSink(SQLSink):
 
         Returns
             The fully qualified table name.
+
         """
         # Use the config table name if set.
         _table_name = self.config.get("table_name")
@@ -67,11 +69,11 @@ class ClickhouseSink(SQLSink):
         return DatetimeErrorTreatmentEnum.NULL
 
     def bulk_insert_records(
-            self,
-            full_table_name: str,
-            schema: dict,
-            records: Iterable[dict[str, Any]],
-        ) -> int | None:
+        self,
+        full_table_name: str,
+        schema: dict,
+        records: Iterable[dict[str, Any]],
+    ) -> int | None:
         """Bulk insert records to an existing destination table.
 
         The default implementation uses a generic SQLAlchemy bulk insert operation.
@@ -86,9 +88,8 @@ class ClickhouseSink(SQLSink):
 
         Returns:
             True if table exists, False if not, None if unsure or undetectable.
-        """
-        schema["properties"]["is_deleted"] = {"type": "integer"}
 
+        """
         # Need to convert any records with a dict type to a JSON string.
         for record in records:
             for key, value in record.items():
@@ -98,10 +99,9 @@ class ClickhouseSink(SQLSink):
         res = super().bulk_insert_records(full_table_name, schema, records)
 
         if self.config.get("optimize_after", False):
-            with self.connector._connect() as conn, conn.begin(): # noqa: SLF001
+            with self.connector._connect() as conn, conn.begin():  # noqa: SLF001
                 self.logger.info("Optimizing table: %s", self.full_table_name)
-                conn.execute(sqlalchemy.text(
-                    f"OPTIMIZE TABLE {self.full_table_name}"))
+                conn.execute(sqlalchemy.text(f"OPTIMIZE TABLE {self.full_table_name}"))
 
         return res
 
@@ -110,6 +110,7 @@ class ClickhouseSink(SQLSink):
 
         Args:
             new_version: The version number to activate.
+
         """
         # There's nothing to do if the table doesn't exist yet
         # (which it won't the first time the stream is processed)
@@ -129,7 +130,7 @@ class ClickhouseSink(SQLSink):
             )
 
         if self.config.get("hard_delete", True):
-            with self.connector._connect() as conn, conn.begin(): # noqa: SLF001
+            with self.connector._connect() as conn, conn.begin():  # noqa: SLF001
                 conn.execute(
                     sqlalchemy.text(
                         f"ALTER TABLE {self.full_table_name} DELETE "
@@ -158,7 +159,7 @@ class ClickhouseSink(SQLSink):
             bindparam("deletedate", value=deleted_at, type_=sqlalchemy.types.DateTime),
             bindparam("version", value=new_version, type_=sqlalchemy.types.Integer),
         )
-        with self.connector._connect() as conn, conn.begin(): # noqa: SLF001
+        with self.connector._connect() as conn, conn.begin():  # noqa: SLF001
             conn.execute(query)
 
     def _validate_and_parse(self, record: dict) -> dict:
@@ -169,6 +170,7 @@ class ClickhouseSink(SQLSink):
 
         Returns:
             Validated record.
+
         """
         # Pre-validate and correct string type mismatches.
         record = pre_validate_for_string_type(record, self.schema, self.logger)
@@ -183,7 +185,7 @@ class ClickhouseSink(SQLSink):
         except jsonschema_exceptions.ValidationError as e:
             if self.logger:
                 self.logger.exception(f"Record failed validation: {record}")
-            raise e # : RERAISES
+            raise e  # : RERAISES
 
         return record
 
@@ -203,6 +205,7 @@ class ClickhouseSink(SQLSink):
             record: Individual record in the stream.
             schema: TODO
             treatment: TODO
+
         """
         for key, value in record.items():
             if key not in schema["properties"]:
@@ -255,6 +258,7 @@ def pre_validate_for_string_type(
 
     Returns:
         Record with corrected string type mismatches.
+
     """
     if schema is None:
         if logger:
@@ -292,7 +296,8 @@ def pre_validate_for_string_type(
             # Convert the value to string if it's not already a string.
             record[key] = (
                 json.dumps(record[key])
-                if isinstance(value, (dict, list)) else str(value)
+                if isinstance(value, (dict, list))
+                else str(value)
             )
             if logger:
                 logger.debug(

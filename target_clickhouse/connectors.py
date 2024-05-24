@@ -180,8 +180,17 @@ class ClickhouseConnector(SQLConnector):
                 ),
             )
 
-        if engine_type == SupportedEngines.REPLACING_MERGE_TREE:
-            columns.append(Column("_is_deleted", clickhouse_sqlalchemy_types.UInt8()))
+        if (
+            engine_type == SupportedEngines.REPLACING_MERGE_TREE
+            and self.config.get("version_col") is not None
+            and self.config.get("deletion_col") is not None
+        ):
+            columns.append(
+                Column(
+                    self.config.get("deletion_col"),
+                    clickhouse_sqlalchemy_types.UInt8(),
+                )
+            )
 
         table_engine = create_engine_wrapper(
             engine_type=engine_type,

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 from string import Template
 from typing import List, Optional
@@ -8,9 +10,13 @@ from sqlalchemy import func
 
 
 class ReplacingMergeTree(engines.MergeTree):
-    def __init__(self, *args, **kwargs):
-        version_col = kwargs.pop("version", None)
-        deletion_col = kwargs.pop("is_deleted", None)
+    def __init__(
+        self,
+        version_col: str | None,
+        deletion_col: str | None,
+        *args,
+        **kwargs,
+    ):
         super(ReplacingMergeTree, self).__init__(*args, **kwargs)
 
         self.version_col = None
@@ -40,12 +46,11 @@ class ReplacingMergeTree(engines.MergeTree):
     def reflect(cls, table, engine_full, **kwargs):
         engine = engines.util.parse_columns(engine_full, delimeter=" ")[0]
         columns = engine[len(cls.__name__) :].strip("()")
-        # version_col = engine[len(cls.__name__):].strip('()') or None  # noqa: ERA001
         version_col, deletion_col = engines.util.parse_columns(columns)
 
         return cls(
-            version=version_col,
-            is_deleted=deletion_col,
+            version_col,
+            deletion_col,
             **cls._reflect_merge_tree(table, **kwargs),
         )
 
@@ -122,8 +127,8 @@ def create_engine_wrapper(
                 msg = "Replica name (replica_name) is not defined."
                 raise ValueError(msg)
         elif engine_type == SupportedEngines.REPLACING_MERGE_TREE:
-            engine_args["version"] = "ReportDate"
-            engine_args["is_deleted"] = "_is_deleted"
+            engine_args["version_col"] = config.get("version_col")
+            engine_args["deletion_col"] = config.get("deletion_col")
 
         engine_class = get_engine_class(engine_type)
 
