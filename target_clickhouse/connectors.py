@@ -5,12 +5,8 @@ import typing
 from typing import TYPE_CHECKING
 
 import sqlalchemy.types
-from clickhouse_sqlalchemy import (
-    Table,
-)
-from clickhouse_sqlalchemy import (
-    types as clickhouse_sqlalchemy_types,
-)
+from clickhouse_sqlalchemy import Table
+from clickhouse_sqlalchemy import types as clickhouse_sqlalchemy_types
 from pkg_resources import get_distribution, parse_version
 from singer_sdk import typing as th
 from singer_sdk.connectors import SQLConnector
@@ -40,6 +36,7 @@ class ClickhouseConnector(SQLConnector):
 
         Args:
             config: The configuration for the connector.
+
         """
         if config.get("sqlalchemy_url"):
             return super().get_sqlalchemy_url(config)
@@ -51,6 +48,7 @@ class ClickhouseConnector(SQLConnector):
                 if not config["verify"]:
                     # disable urllib3 warning
                     import urllib3
+
                     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             else:
                 secure_options = "protocol=http"
@@ -87,6 +85,7 @@ class ClickhouseConnector(SQLConnector):
 
         Returns:
             The SQLAlchemy type representation of the data type.
+
         """
         sql_type = th.to_sql_type(jsonschema_type)
 
@@ -94,30 +93,32 @@ class ClickhouseConnector(SQLConnector):
         # so we need to use the FLOAT type.
         if type(sql_type) == sqlalchemy.types.DECIMAL:
             sql_type = typing.cast(
-                sqlalchemy.types.TypeEngine, sqlalchemy.types.FLOAT(),
+                sqlalchemy.types.TypeEngine,
+                sqlalchemy.types.FLOAT(),
             )
         elif type(sql_type) == sqlalchemy.types.INTEGER:
             sql_type = typing.cast(
-                sqlalchemy.types.TypeEngine, clickhouse_sqlalchemy_types.Int64(),
+                sqlalchemy.types.TypeEngine,
+                clickhouse_sqlalchemy_types.Int64(),
             )
         # All date and time types should be flagged as Nullable to allow for NULL value.
-        elif type(sql_type) in [
-            sqlalchemy.types.DATE,
-            sqlalchemy.types.TIMESTAMP,
-            sqlalchemy.types.TIME,
-            sqlalchemy.types.DATETIME,
-        ]:
-            sql_type = clickhouse_sqlalchemy_types.Nullable(sql_type)
+        # elif type(sql_type) in [
+        #     sqlalchemy.types.DATE,
+        #     sqlalchemy.types.TIMESTAMP,
+        #     sqlalchemy.types.TIME,
+        #     sqlalchemy.types.DATETIME,
+        # ]:
+        #     sql_type = clickhouse_sqlalchemy_types.Nullable(sql_type)  # noqa: ERA001
 
         return sql_type
 
     def create_empty_table(
-            self,
-            full_table_name: str,
-            schema: dict,
-            primary_keys: list[str] | None = None,
-            partition_keys: list[str] | None = None,
-            as_temp_table: bool = False,  # noqa: FBT001, FBT002
+        self,
+        full_table_name: str,
+        schema: dict,
+        primary_keys: list[str] | None = None,
+        partition_keys: list[str] | None = None,
+        as_temp_table: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
         """Create an empty target table, using Clickhouse Engine.
 
@@ -131,6 +132,7 @@ class ClickhouseConnector(SQLConnector):
         Raises:
             NotImplementedError: if temp tables are unsupported and as_temp_table=True.
             RuntimeError: if a variant schema is passed with no properties defined.
+
         """
         if as_temp_table:
             msg = "Temporary tables are not supported."
@@ -178,6 +180,9 @@ class ClickhouseConnector(SQLConnector):
                 ),
             )
 
+        if engine_type == SupportedEngines.REPLACING_MERGE_TREE:
+            columns.append(Column("_is_deleted", clickhouse_sqlalchemy_types.UInt8()))
+
         table_engine = create_engine_wrapper(
             engine_type=engine_type,
             primary_keys=primary_keys,
@@ -199,14 +204,15 @@ class ClickhouseConnector(SQLConnector):
 
         Args:
             schema_name: The target schema name.
+
         """
         return
 
     def prepare_column(
-            self,
-            full_table_name: str,
-            column_name: str,
-            sql_type: sqlalchemy.types.TypeEngine,
+        self,
+        full_table_name: str,
+        column_name: str,
+        sql_type: sqlalchemy.types.TypeEngine,
     ) -> None:
         """Adapt target table to provided schema if possible.
 
@@ -214,6 +220,7 @@ class ClickhouseConnector(SQLConnector):
             full_table_name: the target table name.
             column_name: the target column name.
             sql_type: the SQLAlchemy type.
+
         """
         if not self.column_exists(full_table_name, column_name):
             self._create_empty_column(
@@ -232,9 +239,9 @@ class ClickhouseConnector(SQLConnector):
 
     @staticmethod
     def get_column_add_ddl(
-            table_name: str,
-            column_name: str,
-            column_type: sqlalchemy.types.TypeEngine,
+        table_name: str,
+        column_name: str,
+        column_type: sqlalchemy.types.TypeEngine,
     ) -> sqlalchemy.DDL:
         """Get the create column DDL statement.
 
@@ -247,6 +254,7 @@ class ClickhouseConnector(SQLConnector):
 
         Returns:
             A sqlalchemy DDL instance.
+
         """
         create_column_clause = sqlalchemy.schema.CreateColumn(
             sqlalchemy.Column(
@@ -266,10 +274,10 @@ class ClickhouseConnector(SQLConnector):
         )
 
     def get_column_alter_ddl(
-            self,
-            table_name: str,
-            column_name: str,
-            column_type: sqlalchemy.types.TypeEngine,
+        self,
+        table_name: str,
+        column_name: str,
+        column_type: sqlalchemy.types.TypeEngine,
     ) -> sqlalchemy.DDL:
         """Get the alter column DDL statement.
 
@@ -282,6 +290,7 @@ class ClickhouseConnector(SQLConnector):
 
         Returns:
             A sqlalchemy DDL instance.
+
         """
         if self.config.get("cluster_name"):
             return sqlalchemy.DDL(

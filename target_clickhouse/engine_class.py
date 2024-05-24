@@ -3,7 +3,51 @@ from string import Template
 from typing import List, Optional
 
 from clickhouse_sqlalchemy import engines
+from clickhouse_sqlalchemy.engines.base import TableCol
 from sqlalchemy import func
+
+
+class ReplacingMergeTree(engines.MergeTree):
+    def __init__(self, *args, **kwargs):
+        version_col = kwargs.pop("version", None)
+        deletion_col = kwargs.pop("is_deleted", None)
+        super(ReplacingMergeTree, self).__init__(*args, **kwargs)
+
+        self.version_col = None
+        if version_col is not None:
+            self.version_col = TableCol(version_col)
+
+            if deletion_col is not None:
+                self.deletion_col = TableCol(deletion_col)
+
+    def _set_parent(self, table, **kwargs):
+        super(ReplacingMergeTree, self)._set_parent(table, **kwargs)
+
+        if self.version_col is not None:
+            self.version_col._set_parent(table, **kwargs)
+
+            if self.deletion_col is not None:
+                self.deletion_col._set_parent(table, **kwargs)
+
+    def get_parameters(self):
+        if self.version_col is not None:
+            if self.deletion_col is not None:
+                return [self.version_col.get_column(), self.deletion_col.get_column()]
+
+            return self.version_col.get_column()
+
+    @classmethod
+    def reflect(cls, table, engine_full, **kwargs):
+        engine = engines.util.parse_columns(engine_full, delimeter=" ")[0]
+        columns = engine[len(cls.__name__) :].strip("()")
+        # version_col = engine[len(cls.__name__):].strip('()') or None  # noqa: ERA001
+        version_col, deletion_col = engines.util.parse_columns(columns)
+
+        return cls(
+            version=version_col,
+            is_deleted=deletion_col,
+            **cls._reflect_merge_tree(table, **kwargs),
+        )
 
 
 class SupportedEngines(str, Enum):
@@ -19,15 +63,13 @@ class SupportedEngines(str, Enum):
 
 ENGINE_MAPPING = {
     SupportedEngines.MERGE_TREE: engines.MergeTree,
-    SupportedEngines.REPLACING_MERGE_TREE: engines.ReplacingMergeTree,
+    SupportedEngines.REPLACING_MERGE_TREE: ReplacingMergeTree,
     SupportedEngines.SUMMING_MERGE_TREE: engines.SummingMergeTree,
     SupportedEngines.AGGREGATING_MERGE_TREE: engines.AggregatingMergeTree,
     SupportedEngines.REPLICATED_MERGE_TREE: engines.ReplicatedMergeTree,
-    SupportedEngines.REPLICATED_REPLACING_MERGE_TREE:
-        engines.ReplicatedReplacingMergeTree,
+    SupportedEngines.REPLICATED_REPLACING_MERGE_TREE: engines.ReplicatedReplacingMergeTree,
     SupportedEngines.REPLICATED_SUMMING_MERGE_TREE: engines.ReplicatedSummingMergeTree,
-    SupportedEngines.REPLICATED_AGGREGATING_MERGE_TREE:
-        engines.ReplicatedAggregatingMergeTree,
+    SupportedEngines.REPLICATED_AGGREGATING_MERGE_TREE: engines.ReplicatedAggregatingMergeTree,
 }
 
 
@@ -79,6 +121,9 @@ def create_engine_wrapper(
             else:
                 msg = "Replica name (replica_name) is not defined."
                 raise ValueError(msg)
+        elif engine_type == SupportedEngines.REPLACING_MERGE_TREE:
+            engine_args["version"] = "ReportDate"
+            engine_args["is_deleted"] = "_is_deleted"
 
         engine_class = get_engine_class(engine_type)
 
