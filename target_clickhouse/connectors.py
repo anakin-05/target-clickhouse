@@ -157,7 +157,7 @@ class ClickhouseConnector(SQLConnector):
             meta = MetaData(schema=None)
 
         columns: list[Column] = []
-        primary_keys = primary_keys or []
+        primary_keys = primary_keys or self.config.get("default_primary_keys", [])
 
         # If config engine type is set, then use it instead of the default engine type.
         if self.config.get("engine_type"):
