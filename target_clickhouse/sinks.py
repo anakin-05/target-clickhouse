@@ -245,9 +245,7 @@ class ClickhouseSink(SQLSink):
                         record,
                         [key],
                         date_val,
-                        datelike_typ        SDC_IS_DELETED = "_sdc_is_deleted"
-        if SDC_IS_DELETED in record.keys() and SDC_IS_DELETED not in self.schema["properties"]:
-            self.schema["properties"][SDC_IS_DELETED] = {'inclusion': 'available', 'type': ['null', 'integer']}e,
+                        datelike_type,
                         ex,
                         treatment,
                         self.logger,
