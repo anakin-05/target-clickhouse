@@ -172,7 +172,16 @@ class ClickhouseSink(SQLSink):
             Validated record.
 
         """
-        # Pre-validate and correct string type mismatches.
+        SDC_IS_DELETED = "_sdc_is_deleted"
+        if (
+            SDC_IS_DELETED in record.keys()
+            and SDC_IS_DELETED not in self.schema["properties"]
+        ):
+            self.schema["properties"][SDC_IS_DELETED] = {
+                "inclusion": "available",
+                "type": ["null", "integer"],
+            }  # Pre-validate and correct string type mismatches.
+
         record = pre_validate_for_string_type(record, self.schema, self.logger)
 
         try:
@@ -236,7 +245,9 @@ class ClickhouseSink(SQLSink):
                         record,
                         [key],
                         date_val,
-                        datelike_type,
+                        datelike_typ        SDC_IS_DELETED = "_sdc_is_deleted"
+        if SDC_IS_DELETED in record.keys() and SDC_IS_DELETED not in self.schema["properties"]:
+            self.schema["properties"][SDC_IS_DELETED] = {'inclusion': 'available', 'type': ['null', 'integer']}e,
                         ex,
                         treatment,
                         self.logger,
